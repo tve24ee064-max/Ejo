@@ -1,4 +1,4 @@
-# Ejo - Waste Management System
+# Waste Management System
 
 A comprehensive web application for managing waste collection and disposal around CET Engineering College, Trivandrum.
 
@@ -168,4 +168,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Ejo Waste Management System** - Making waste management efficient and accessible for CET Engineering College, Trivandrum.
+**Waste Management System** - Making waste management efficient and accessible for CET Engineering College, Trivandrum.
