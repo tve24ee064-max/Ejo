@@ -32,7 +32,14 @@ async function checkAuth() {
 
 // Show login modal
 function showLoginModal() {
-    document.getElementById('loginModal').style.display = 'block';
+    console.log('Showing login modal');
+    const modal = document.getElementById('loginModal');
+    if (modal) {
+        modal.style.display = 'block';
+        console.log('Login modal displayed');
+    } else {
+        console.error('Login modal not found');
+    }
 }
 
 // Hide login modal
@@ -269,8 +276,11 @@ function initializeMap() {
 // Load bins
 async function loadBins() {
     try {
+        console.log('Loading bins from /api/bins');
         const response = await fetch('/api/bins');
+        console.log('Bins response status:', response.status);
         bins = await response.json();
+        console.log('Loaded bins:', bins);
         return bins;
     } catch (error) {
         console.error('Error loading bins:', error);
@@ -280,6 +290,8 @@ async function loadBins() {
 
 // Display bins on map
 function displayBinsOnMap() {
+    console.log('Displaying bins on map, total bins:', bins.length);
+    
     // Clear existing markers
     binMarkers.forEach(marker => map.removeLayer(marker));
     binMarkers = [];
@@ -290,6 +302,8 @@ function displayBinsOnMap() {
     if (typeFilter) {
         filteredBins = bins.filter(bin => bin.type === typeFilter);
     }
+    
+    console.log('Filtered bins to display:', filteredBins.length);
 
     // Add markers for each bin
     filteredBins.forEach(bin => {
