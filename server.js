@@ -20,7 +20,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'ejo-waste-management-secret',
     resave: false,
     saveUninitialized: true,
-    cookie: { 
+    cookie: {
         secure: process.env.NODE_ENV === 'production' && process.env.HTTPS === 'true',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
@@ -93,7 +93,7 @@ db.serialize(() => {
     db.run(`INSERT OR IGNORE INTO users (username, role) VALUES ('admin', 'admin')`);
     db.run(`INSERT OR IGNORE INTO users (username, role) VALUES ('worker1', 'worker')`);
     db.run(`INSERT OR IGNORE INTO users (username, role) VALUES ('worker2', 'worker')`);
-    
+
     // Insert bins at exact CET Engineering College locations with precise coordinates
     const sampleBins = [
         ['metal', 8.546425, 76.906937, 'Mech Department'],
@@ -101,7 +101,7 @@ db.serialize(() => {
         ['plastic', 8.545369, 76.905679, 'EC Department'],
         ['paper', 8.545475, 76.906845, 'Cooperative Store']
     ];
-    
+
     const insertBin = db.prepare(`INSERT OR IGNORE INTO bins (type, latitude, longitude, location_name) VALUES (?, ?, ?, ?)`);
     sampleBins.forEach(bin => {
         insertBin.run(bin);
@@ -129,7 +129,7 @@ const requireRole = (roles) => (req, res, next) => {
 // Authentication routes
 app.post('/api/auth/login', (req, res) => {
     const { username } = req.body;
-    
+
     if (!username) {
         return res.status(400).json({ error: 'Username is required' });
     }
@@ -143,11 +143,11 @@ app.post('/api/auth/login', (req, res) => {
         if (!user) {
             // Create new public user
             const role = username === 'admin' ? 'admin' : 'public';
-            db.run('INSERT INTO users (username, role) VALUES (?, ?)', [username, role], function(err) {
+            db.run('INSERT INTO users (username, role) VALUES (?, ?)', [username, role], function (err) {
                 if (err) {
                     return res.status(500).json({ error: 'Failed to create user' });
                 }
-                
+
                 const newUser = { id: this.lastID, username, role };
                 req.session.user = newUser;
                 res.json({ user: newUser, message: 'User created and logged in successfully' });
@@ -184,24 +184,24 @@ app.get('/api/bins', (req, res) => {
 
 app.post('/api/bins', requireAuth, requireRole(['worker', 'admin']), (req, res) => {
     const { type, latitude, longitude, location_name } = req.body;
-    
+
     if (!type || !latitude || !longitude) {
         return res.status(400).json({ error: 'Type, latitude, and longitude are required' });
     }
 
     db.run('INSERT INTO bins (type, latitude, longitude, location_name, created_by) VALUES (?, ?, ?, ?, ?)',
-        [type, latitude, longitude, location_name, req.session.user.id], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to create bin' });
-        }
-        res.json({ id: this.lastID, message: 'Bin created successfully' });
-    });
+        [type, latitude, longitude, location_name, req.session.user.id], function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to create bin' });
+            }
+            res.json({ id: this.lastID, message: 'Bin created successfully' });
+        });
 });
 
 app.delete('/api/bins/:id', requireAuth, requireRole(['worker', 'admin']), (req, res) => {
     const binId = req.params.id;
-    
-    db.run('UPDATE bins SET status = "inactive" WHERE id = ?', [binId], function(err) {
+
+    db.run('UPDATE bins SET status = "inactive" WHERE id = ?', [binId], function (err) {
         if (err) {
             return res.status(500).json({ error: 'Failed to delete bin' });
         }
@@ -215,14 +215,14 @@ app.get('/api/complaints', requireAuth, (req, res) => {
                 FROM complaints c 
                 LEFT JOIN users u ON c.user_id = u.id 
                 LEFT JOIN users r ON c.resolved_by = r.id`;
-    
+
     // Public users can only see their own complaints
     if (req.session.user.role === 'public') {
         query += ` WHERE c.user_id = ${req.session.user.id}`;
     }
-    
+
     query += ' ORDER BY c.created_at DESC';
-    
+
     db.all(query, (err, complaints) => {
         if (err) {
             return res.status(500).json({ error: 'Database error' });
@@ -233,35 +233,35 @@ app.get('/api/complaints', requireAuth, (req, res) => {
 
 app.post('/api/complaints', requireAuth, (req, res) => {
     const { title, description, latitude, longitude, location_name, priority } = req.body;
-    
+
     if (!title || !description) {
         return res.status(400).json({ error: 'Title and description are required' });
     }
 
     db.run('INSERT INTO complaints (user_id, title, description, latitude, longitude, location_name, priority) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.session.user.id, title, description, latitude, longitude, location_name, priority || 'medium'], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to create complaint' });
-        }
-        res.json({ id: this.lastID, message: 'Complaint submitted successfully' });
-    });
+        [req.session.user.id, title, description, latitude, longitude, location_name, priority || 'medium'], function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to create complaint' });
+            }
+            res.json({ id: this.lastID, message: 'Complaint submitted successfully' });
+        });
 });
 
 app.put('/api/complaints/:id', requireAuth, requireRole(['worker', 'admin']), (req, res) => {
     const complaintId = req.params.id;
     const { status } = req.body;
-    
+
     if (!status) {
         return res.status(400).json({ error: 'Status is required' });
     }
 
     db.run('UPDATE complaints SET status = ?, resolved_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [status, req.session.user.id, complaintId], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to update complaint' });
-        }
-        res.json({ message: 'Complaint updated successfully' });
-    });
+        [status, req.session.user.id, complaintId], function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to update complaint' });
+            }
+            res.json({ message: 'Complaint updated successfully' });
+        });
 });
 
 // Schedules routes
@@ -272,7 +272,7 @@ app.get('/api/schedules', requireAuth, (req, res) => {
                 LEFT JOIN users u ON s.user_id = u.id 
                 LEFT JOIN bins b ON s.bin_id = b.id
                 LEFT JOIN users w ON s.assigned_worker_id = w.id`;
-    
+
     // Public users can only see their own schedules
     // Workers see their own schedules AND assigned schedules
     // Admins see all schedules
@@ -281,9 +281,9 @@ app.get('/api/schedules', requireAuth, (req, res) => {
     } else if (req.session.user.role === 'worker') {
         query += ` WHERE (s.user_id = ${req.session.user.id} OR s.assigned_worker_id = ${req.session.user.id})`;
     }
-    
+
     query += ' ORDER BY s.collection_date ASC, s.collection_time ASC';
-    
+
     db.all(query, (err, schedules) => {
         if (err) {
             return res.status(500).json({ error: 'Database error' });
@@ -294,31 +294,31 @@ app.get('/api/schedules', requireAuth, (req, res) => {
 
 app.post('/api/schedules', requireAuth, (req, res) => {
     const { bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes } = req.body;
-    
+
     if (!collection_date || !collection_time) {
         return res.status(400).json({ error: 'Collection date and time are required' });
     }
 
     db.run('INSERT INTO schedules (user_id, bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.session.user.id, bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to create schedule' });
-        }
-        res.json({ id: this.lastID, message: 'Schedule created successfully' });
-    });
+        [req.session.user.id, bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes], function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to create schedule' });
+            }
+            res.json({ id: this.lastID, message: 'Schedule created successfully' });
+        });
 });
 
 app.put('/api/schedules/:id', requireAuth, requireRole(['worker', 'admin']), (req, res) => {
     const scheduleId = req.params.id;
     const { status, collector_name, assigned_worker_id } = req.body;
-    
+
     db.run('UPDATE schedules SET status = ?, collector_name = ?, assigned_worker_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [status, collector_name, assigned_worker_id, scheduleId], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to update schedule' });
-        }
-        res.json({ message: 'Schedule updated successfully' });
-    });
+        [status, collector_name, assigned_worker_id, scheduleId], function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to update schedule' });
+            }
+            res.json({ message: 'Schedule updated successfully' });
+        });
 });
 
 // Get all workers (for assignment dropdown)
@@ -335,14 +335,14 @@ app.get('/api/workers', requireAuth, requireRole(['admin', 'worker']), (req, res
 app.put('/api/schedules/:id/assign', requireAuth, requireRole(['admin']), (req, res) => {
     const scheduleId = req.params.id;
     const { assigned_worker_id, admin_notes } = req.body;
-    
+
     db.run('UPDATE schedules SET assigned_worker_id = ?, admin_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [assigned_worker_id, admin_notes, scheduleId], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to assign worker' });
-        }
-        res.json({ message: 'Worker assigned successfully' });
-    });
+        [assigned_worker_id, admin_notes, scheduleId], function (err) {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to assign worker' });
+            }
+            res.json({ message: 'Worker assigned successfully' });
+        });
 });
 
 // Serve static files

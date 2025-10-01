@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
+
 <body>
     <!-- Login Modal -->
     <div id="loginModal" class="modal">
@@ -49,7 +51,8 @@
                 <li><a href="#" data-section="map" class="nav-link">Map View</a></li>
                 <li><a href="#" data-section="complaints" class="nav-link">Complaints</a></li>
                 <li><a href="#" data-section="schedule" class="nav-link">Schedule</a></li>
-                <li id="adminNav" style="display:none;"><a href="#" data-section="admin" class="nav-link">Admin Panel</a></li>
+                <li id="adminNav" style="display:none;"><a href="#" data-section="admin" class="nav-link">Admin
+                        Panel</a></li>
             </ul>
         </div>
     </nav>
@@ -82,7 +85,7 @@
                         <p>Completed Tasks</p>
                     </div>
                 </div>
-                
+
                 <div class="quick-actions">
                     <h3>Quick Actions</h3>
                     <div class="action-buttons">
@@ -119,7 +122,7 @@
                     </div>
                 </div>
                 <div id="mapContainer" class="map-container"></div>
-                
+
                 <!-- Add Bin Modal -->
                 <div id="addBinModal" class="modal">
                     <div class="modal-content">
@@ -149,7 +152,8 @@
                             </div>
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">Add Bin</button>
-                                <button type="button" class="btn btn-secondary" onclick="closeModal('addBinModal')">Cancel</button>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="closeModal('addBinModal')">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -159,7 +163,7 @@
             <!-- Complaints Section -->
             <section id="complaints" class="section">
                 <h2>Complaints Management</h2>
-                
+
                 <div class="section-actions">
                     <button class="btn btn-primary" id="newComplaintBtn">
                         <i class="fas fa-plus"></i> Submit New Complaint
@@ -198,7 +202,8 @@
                             </div>
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">Submit Complaint</button>
-                                <button type="button" class="btn btn-secondary" onclick="closeModal('newComplaintModal')">Cancel</button>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="closeModal('newComplaintModal')">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -208,7 +213,7 @@
             <!-- Schedule Section -->
             <section id="schedule" class="section">
                 <h2>Waste Collection Schedule</h2>
-                
+
                 <div class="section-actions">
                     <button class="btn btn-primary" id="newScheduleBtn">
                         <i class="fas fa-calendar-plus"></i> Schedule Collection
@@ -253,15 +258,18 @@
                             </div>
                             <div class="form-group">
                                 <label for="scheduleNotes">Public Notes:</label>
-                                <textarea id="scheduleNotes" rows="3" placeholder="Any special instructions visible to workers..."></textarea>
+                                <textarea id="scheduleNotes" rows="3"
+                                    placeholder="Any special instructions visible to workers..."></textarea>
                             </div>
                             <div class="form-group" id="adminNotesGroup" style="display:none;">
                                 <label for="adminNotes">Admin Notes:</label>
-                                <textarea id="adminNotes" rows="2" placeholder="Internal notes for admin reference..."></textarea>
+                                <textarea id="adminNotes" rows="2"
+                                    placeholder="Internal notes for admin reference..."></textarea>
                             </div>
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">Schedule Collection</button>
-                                <button type="button" class="btn btn-secondary" onclick="closeModal('newScheduleModal')">Cancel</button>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="closeModal('newScheduleModal')">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -282,11 +290,13 @@
                             </div>
                             <div class="form-group">
                                 <label for="assignmentNotes">Assignment Notes:</label>
-                                <textarea id="assignmentNotes" rows="3" placeholder="Any special instructions for the assigned worker..."></textarea>
+                                <textarea id="assignmentNotes" rows="3"
+                                    placeholder="Any special instructions for the assigned worker..."></textarea>
                             </div>
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">Assign Worker</button>
-                                <button type="button" class="btn btn-secondary" onclick="closeModal('assignWorkerModal')">Cancel</button>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="closeModal('assignWorkerModal')">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -296,7 +306,7 @@
             <!-- Admin Panel Section -->
             <section id="admin" class="section">
                 <h2>Admin Panel</h2>
-                
+
                 <div class="admin-tabs">
                     <button class="tab-btn active" onclick="showAdminTab('users')">Users</button>
                     <button class="tab-btn" onclick="showAdminTab('bins')">Bins Management</button>
@@ -346,4 +356,5 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/app.js"></script>
 </body>
+
 </html>

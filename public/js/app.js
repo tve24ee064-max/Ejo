@@ -8,7 +8,7 @@ let binMarkers = [];
 let selectedLocation = null;
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     checkAuth();
     setupEventListeners();
 });
@@ -44,50 +44,50 @@ function hideLoginModal() {
 function setupEventListeners() {
     // Login form
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
-    
+
     // Logout button
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-    
+
     // Navigation
     document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', function(e) {
+        link.addEventListener('click', function (e) {
             e.preventDefault();
             const section = this.dataset.section;
             showSection(section);
         });
     });
-    
+
     // Modal close buttons
     document.querySelectorAll('.close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', function() {
+        closeBtn.addEventListener('click', function () {
             this.closest('.modal').style.display = 'none';
         });
     });
-    
+
     // Modal forms
     document.getElementById('newComplaintForm').addEventListener('submit', handleNewComplaint);
     document.getElementById('newScheduleForm').addEventListener('submit', handleNewSchedule);
     document.getElementById('addBinForm').addEventListener('submit', handleAddBin);
-    
+
     // Action buttons
     document.getElementById('newComplaintBtn').addEventListener('click', () => {
         document.getElementById('newComplaintModal').style.display = 'block';
     });
-    
+
     document.getElementById('newScheduleBtn').addEventListener('click', () => {
         loadBinsForSchedule();
         document.getElementById('newScheduleModal').style.display = 'block';
     });
-    
+
     document.getElementById('addBinBtn').addEventListener('click', () => {
         document.getElementById('addBinModal').style.display = 'block';
     });
-    
+
     // Filter
     document.getElementById('binTypeFilter').addEventListener('change', filterBins);
-    
+
     // Close modals when clicking outside
-    window.addEventListener('click', function(e) {
+    window.addEventListener('click', function (e) {
         if (e.target.classList.contains('modal')) {
             e.target.style.display = 'none';
         }
@@ -98,12 +98,12 @@ function setupEventListeners() {
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('username').value.trim();
-    
+
     if (!username) {
         alert('Please enter a username');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
@@ -112,9 +112,9 @@ async function handleLogin(e) {
             },
             body: JSON.stringify({ username })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             currentUser = data.user;
             hideLoginModal();
@@ -135,7 +135,7 @@ async function handleLogout() {
         currentUser = null;
         document.getElementById('userWelcome').textContent = '';
         showLoginModal();
-        
+
         // Reset navigation
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
@@ -158,11 +158,11 @@ function initializeApp() {
 // Update UI based on user role
 function updateUI() {
     document.getElementById('userWelcome').textContent = `Welcome, ${currentUser.username} (${currentUser.role})`;
-    
+
     // Show/hide navigation items based on role
     const adminNav = document.getElementById('adminNav');
     const workerControls = document.getElementById('workerControls');
-    
+
     if (currentUser.role === 'admin') {
         adminNav.style.display = 'block';
         workerControls.style.display = 'flex';
@@ -182,15 +182,15 @@ function showSection(sectionName) {
         link.classList.remove('active');
     });
     document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
-    
+
     // Update sections
     document.querySelectorAll('.section').forEach(section => {
         section.classList.remove('active');
     });
     document.getElementById(sectionName).classList.add('active');
-    
+
     // Load section data
-    switch(sectionName) {
+    switch (sectionName) {
         case 'dashboard':
             loadDashboardData();
             break;
@@ -216,13 +216,13 @@ async function loadDashboardData() {
         const binsResponse = await fetch('/api/bins');
         const binsData = await binsResponse.json();
         document.getElementById('totalBins').textContent = binsData.length;
-        
+
         // Load complaints
         const complaintsResponse = await fetch('/api/complaints');
         const complaintsData = await complaintsResponse.json();
         const pendingComplaints = complaintsData.filter(c => c.status === 'pending').length;
         document.getElementById('pendingComplaints').textContent = pendingComplaints;
-        
+
         // Load schedules
         const schedulesResponse = await fetch('/api/schedules');
         const schedulesData = await schedulesResponse.json();
@@ -230,7 +230,7 @@ async function loadDashboardData() {
         const completedTasks = schedulesData.filter(s => s.status === 'completed').length;
         document.getElementById('scheduledCollections').textContent = scheduledCollections;
         document.getElementById('completedTasks').textContent = completedTasks;
-        
+
     } catch (error) {
         console.error('Error loading dashboard data:', error);
     }
@@ -249,16 +249,16 @@ async function loadMapData() {
 function initializeMap() {
     // Center on CET Engineering College, Trivandrum - focused on actual bin locations
     const cetLocation = [8.545579, 76.905784];
-    
+
     map = L.map('mapContainer').setView(cetLocation, 16);
-    
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    
+
     // Add click handler for adding bins (workers/admin only)
     if (currentUser && (currentUser.role === 'worker' || currentUser.role === 'admin')) {
-        map.on('click', function(e) {
+        map.on('click', function (e) {
             selectedLocation = e.latlng;
             document.getElementById('binLat').value = e.latlng.lat.toFixed(6);
             document.getElementById('binLng').value = e.latlng.lng.toFixed(6);
@@ -283,32 +283,32 @@ function displayBinsOnMap() {
     // Clear existing markers
     binMarkers.forEach(marker => map.removeLayer(marker));
     binMarkers = [];
-    
+
     // Filter bins based on type filter
     const typeFilter = document.getElementById('binTypeFilter').value;
     let filteredBins = bins;
     if (typeFilter) {
         filteredBins = bins.filter(bin => bin.type === typeFilter);
     }
-    
+
     // Add markers for each bin
     filteredBins.forEach(bin => {
         const icon = getBinIcon(bin.type);
         const marker = L.marker([bin.latitude, bin.longitude], { icon }).addTo(map);
-        
+
         const popupContent = `
             <div class="bin-popup">
                 <h4>${bin.location_name || 'Waste Bin'}</h4>
                 <div class="bin-type">${bin.type}</div>
                 <div class="bin-location">Lat: ${bin.latitude.toFixed(4)}, Lng: ${bin.longitude.toFixed(4)}</div>
-                ${(currentUser.role === 'worker' || currentUser.role === 'admin') 
-                    ? `<div class="bin-actions">
+                ${(currentUser.role === 'worker' || currentUser.role === 'admin')
+                ? `<div class="bin-actions">
                          <button class="btn btn-danger btn-small" onclick="deleteBin(${bin.id})">Remove</button>
-                       </div>` 
-                    : ''}
+                       </div>`
+                : ''}
             </div>
         `;
-        
+
         marker.bindPopup(popupContent);
         binMarkers.push(marker);
     });
@@ -321,7 +321,7 @@ function getBinIcon(type) {
         plastic: '#2196F3',
         metal: '#FF9800'
     };
-    
+
     return L.divIcon({
         className: 'custom-bin-icon',
         html: `<div style="background-color: ${colors[type]}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
@@ -342,12 +342,12 @@ async function deleteBin(binId) {
     if (!confirm('Are you sure you want to remove this bin?')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/bins/${binId}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
             await loadBins();
             displayBinsOnMap();
@@ -365,17 +365,17 @@ async function deleteBin(binId) {
 // Handle add bin
 async function handleAddBin(e) {
     e.preventDefault();
-    
+
     const type = document.getElementById('binType').value;
     const location_name = document.getElementById('binLocation').value;
     const latitude = parseFloat(document.getElementById('binLat').value);
     const longitude = parseFloat(document.getElementById('binLng').value);
-    
+
     if (!type || !location_name || !latitude || !longitude) {
         alert('Please fill all fields and select a location on the map');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/bins', {
             method: 'POST',
@@ -384,9 +384,9 @@ async function handleAddBin(e) {
             },
             body: JSON.stringify({ type, location_name, latitude, longitude })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             closeModal('addBinModal');
             document.getElementById('addBinForm').reset();
@@ -417,7 +417,7 @@ async function loadComplaints() {
 // Display complaints
 function displayComplaints() {
     const complaintsContainer = document.getElementById('complaintsList');
-    
+
     if (complaints.length === 0) {
         complaintsContainer.innerHTML = `
             <div class="empty-state">
@@ -427,7 +427,7 @@ function displayComplaints() {
         `;
         return;
     }
-    
+
     complaintsContainer.innerHTML = complaints.map(complaint => `
         <div class="complaint-item">
             <div class="complaint-header">
@@ -461,12 +461,12 @@ function displayComplaints() {
 // Handle new complaint
 async function handleNewComplaint(e) {
     e.preventDefault();
-    
+
     const title = document.getElementById('complaintTitle').value;
     const description = document.getElementById('complaintDescription').value;
     const priority = document.getElementById('complaintPriority').value;
     const location_name = document.getElementById('complaintLocationName').value;
-    
+
     try {
         const response = await fetch('/api/complaints', {
             method: 'POST',
@@ -475,9 +475,9 @@ async function handleNewComplaint(e) {
             },
             body: JSON.stringify({ title, description, priority, location_name })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             closeModal('newComplaintModal');
             document.getElementById('newComplaintForm').reset();
@@ -496,7 +496,7 @@ async function handleNewComplaint(e) {
 // Update complaint status
 async function updateComplaintStatus(complaintId, status) {
     if (!status) return;
-    
+
     try {
         const response = await fetch(`/api/complaints/${complaintId}`, {
             method: 'PUT',
@@ -505,7 +505,7 @@ async function updateComplaintStatus(complaintId, status) {
             },
             body: JSON.stringify({ status })
         });
-        
+
         if (response.ok) {
             loadComplaints();
             loadDashboardData();
@@ -533,7 +533,7 @@ async function loadSchedules() {
 // Display schedules
 function displaySchedules() {
     const schedulesContainer = document.getElementById('scheduleList');
-    
+
     if (schedules.length === 0) {
         schedulesContainer.innerHTML = `
             <div class="empty-state">
@@ -543,11 +543,11 @@ function displaySchedules() {
         `;
         return;
     }
-    
+
     schedulesContainer.innerHTML = schedules.map(schedule => {
         const isAssignedToCurrentUser = schedule.assigned_worker_id === currentUser.id;
         const canManage = currentUser.role === 'admin' || isAssignedToCurrentUser;
-        
+
         return `
         <div class="schedule-item ${isAssignedToCurrentUser ? 'assigned-to-me' : ''}">
             <div class="schedule-header">
@@ -595,7 +595,7 @@ async function loadBinsForSchedule() {
         const response = await fetch('/api/bins');
         const bins = await response.json();
         const select = document.getElementById('scheduleBin');
-        
+
         select.innerHTML = '<option value="">General Collection</option>';
         bins.forEach(bin => {
             select.innerHTML += `<option value="${bin.id}">${bin.location_name || 'Unnamed'} (${bin.type})</option>`;
@@ -618,7 +618,7 @@ async function loadWorkersForAssignment() {
         const response = await fetch('/api/workers');
         const workers = await response.json();
         const select = document.getElementById('assignedWorker');
-        
+
         select.innerHTML = '<option value="">No specific assignment</option>';
         workers.forEach(worker => {
             select.innerHTML += `<option value="${worker.id}">${worker.username} (${worker.id === currentUser.id ? 'You' : 'Worker'})</option>`;
@@ -631,14 +631,14 @@ async function loadWorkersForAssignment() {
 // Handle new schedule
 async function handleNewSchedule(e) {
     e.preventDefault();
-    
+
     const bin_id = document.getElementById('scheduleBin').value || null;
     const collection_date = document.getElementById('scheduleDate').value;
     const collection_time = document.getElementById('scheduleTime').value;
     const notes = document.getElementById('scheduleNotes').value;
     const assigned_worker_id = document.getElementById('assignedWorker').value || null;
     const admin_notes = document.getElementById('adminNotes').value;
-    
+
     try {
         const response = await fetch('/api/schedules', {
             method: 'POST',
@@ -647,9 +647,9 @@ async function handleNewSchedule(e) {
             },
             body: JSON.stringify({ bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             closeModal('newScheduleModal');
             document.getElementById('newScheduleForm').reset();
@@ -668,9 +668,9 @@ async function handleNewSchedule(e) {
 // Update schedule status
 async function updateScheduleStatus(scheduleId, status) {
     if (!status) return;
-    
+
     const collector_name = status === 'completed' ? prompt('Enter collector name:') : null;
-    
+
     try {
         const response = await fetch(`/api/schedules/${scheduleId}`, {
             method: 'PUT',
@@ -679,7 +679,7 @@ async function updateScheduleStatus(scheduleId, status) {
             },
             body: JSON.stringify({ status, collector_name })
         });
-        
+
         if (response.ok) {
             loadSchedules();
             loadDashboardData();
@@ -705,15 +705,15 @@ function showAdminTab(tabName) {
         btn.classList.remove('active');
     });
     event.target.classList.add('active');
-    
+
     // Update tab content
     document.querySelectorAll('.admin-tab-content').forEach(content => {
         content.classList.remove('active');
     });
     document.getElementById(`admin${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
-    
+
     // Load tab data
-    switch(tabName) {
+    switch (tabName) {
         case 'users':
             loadAdminUsers();
             break;
@@ -745,7 +745,7 @@ async function loadAdminBins() {
     try {
         const response = await fetch('/api/bins');
         const bins = await response.json();
-        
+
         document.getElementById('adminBinsList').innerHTML = bins.map(bin => `
             <div class="complaint-item">
                 <div class="complaint-header">
@@ -786,14 +786,14 @@ function closeModal(modalId) {
 }
 
 // Set minimum date for schedule to today
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const dateInput = document.getElementById('scheduleDate');
     if (dateInput) {
         const today = new Date().toISOString().split('T')[0];
         dateInput.min = today;
         dateInput.value = today;
     }
-    
+
     // Setup worker assignment form handler
     const assignWorkerForm = document.getElementById('assignWorkerForm');
     if (assignWorkerForm) {
@@ -807,18 +807,18 @@ let scheduleIdForAssignment = null;
 // Show assign worker modal
 async function showAssignWorkerModal(scheduleId) {
     scheduleIdForAssignment = scheduleId;
-    
+
     // Load workers
     try {
         const response = await fetch('/api/workers');
         const workers = await response.json();
         const select = document.getElementById('assignWorkerSelect');
-        
+
         select.innerHTML = '<option value="">Choose a worker...</option>';
         workers.forEach(worker => {
             select.innerHTML += `<option value="${worker.id}">${worker.username}</option>`;
         });
-        
+
         document.getElementById('assignWorkerModal').style.display = 'block';
     } catch (error) {
         console.error('Error loading workers:', error);
@@ -829,15 +829,15 @@ async function showAssignWorkerModal(scheduleId) {
 // Handle worker assignment
 async function handleWorkerAssignment(e) {
     e.preventDefault();
-    
+
     const assigned_worker_id = document.getElementById('assignWorkerSelect').value;
     const admin_notes = document.getElementById('assignmentNotes').value;
-    
+
     if (!assigned_worker_id) {
         alert('Please select a worker');
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/schedules/${scheduleIdForAssignment}/assign`, {
             method: 'PUT',
@@ -846,9 +846,9 @@ async function handleWorkerAssignment(e) {
             },
             body: JSON.stringify({ assigned_worker_id, admin_notes })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             closeModal('assignWorkerModal');
             document.getElementById('assignWorkerForm').reset();
