@@ -659,3 +659,43 @@ body {
     font-size: 2rem;
     margin-bottom: 1rem;
 }
+
+/* Worker Assignment Styles */
+.assigned-to-me {
+    border-left: 4px solid #28a745 !important;
+    background: #f8fff9 !important;
+}
+
+.assigned-badge {
+    background: #28a745;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 10px;
+    text-transform: uppercase;
+}
+
+.status-in_progress {
+    background: #17a2b8;
+    color: white;
+}
+
+.schedule-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.schedule-actions select {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* Worker Assignment Modal */
+.worker-assignment-modal .modal-content {
+    max-width: 400px;
+}

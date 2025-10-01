@@ -8,16 +8,22 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Railway deployment
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-    secret: 'ejo-waste-management-secret',
+    secret: process.env.SESSION_SECRET || 'ejo-waste-management-secret',
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false }
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production' && process.env.HTTPS === 'true',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
 
 // Initialize SQLite database
@@ -71,24 +77,29 @@ db.serialize(() => {
         bin_id INTEGER,
         collection_date DATE NOT NULL,
         collection_time TIME NOT NULL,
-        status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled')),
+        status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled')),
+        assigned_worker_id INTEGER,
         collector_name TEXT,
         notes TEXT,
+        admin_notes TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id),
-        FOREIGN KEY (bin_id) REFERENCES bins (id)
+        FOREIGN KEY (bin_id) REFERENCES bins (id),
+        FOREIGN KEY (assigned_worker_id) REFERENCES users (id)
     )`);
 
-    // Insert default admin user
+    // Insert default admin user and demo workers
     db.run(`INSERT OR IGNORE INTO users (username, role) VALUES ('admin', 'admin')`);
+    db.run(`INSERT OR IGNORE INTO users (username, role) VALUES ('worker1', 'worker')`);
+    db.run(`INSERT OR IGNORE INTO users (username, role) VALUES ('worker2', 'worker')`);
     
-    // Insert some sample bins around CET Engineering College, Trivandrum
+    // Insert bins at exact CET Engineering College locations with precise coordinates
     const sampleBins = [
-        ['paper', 8.5513, 76.8995, 'CET Main Gate'],
-        ['plastic', 8.5520, 76.9000, 'CET Library'],
-        ['metal', 8.5510, 76.8990, 'CET Canteen'],
-        ['paper', 8.5525, 76.9005, 'CET Hostel Block A'],
-        ['plastic', 8.5505, 76.8985, 'CET Administration Block']
+        ['metal', 8.546425, 76.906937, 'Mech Department'],
+        ['paper', 8.545169, 76.904677, 'Open Gym'],
+        ['plastic', 8.545369, 76.905679, 'EC Department'],
+        ['paper', 8.545475, 76.906845, 'Cooperative Store']
     ];
     
     const insertBin = db.prepare(`INSERT OR IGNORE INTO bins (type, latitude, longitude, location_name) VALUES (?, ?, ?, ?)`);
@@ -255,17 +266,23 @@ app.put('/api/complaints/:id', requireAuth, requireRole(['worker', 'admin']), (r
 
 // Schedules routes
 app.get('/api/schedules', requireAuth, (req, res) => {
-    let query = `SELECT s.*, u.username as user_name, b.type as bin_type, b.location_name as bin_location 
+    let query = `SELECT s.*, u.username as user_name, b.type as bin_type, b.location_name as bin_location,
+                        w.username as assigned_worker_name
                 FROM schedules s 
                 LEFT JOIN users u ON s.user_id = u.id 
-                LEFT JOIN bins b ON s.bin_id = b.id`;
+                LEFT JOIN bins b ON s.bin_id = b.id
+                LEFT JOIN users w ON s.assigned_worker_id = w.id`;
     
     // Public users can only see their own schedules
+    // Workers see their own schedules AND assigned schedules
+    // Admins see all schedules
     if (req.session.user.role === 'public') {
         query += ` WHERE s.user_id = ${req.session.user.id}`;
+    } else if (req.session.user.role === 'worker') {
+        query += ` WHERE (s.user_id = ${req.session.user.id} OR s.assigned_worker_id = ${req.session.user.id})`;
     }
     
-    query += ' ORDER BY s.collection_date DESC, s.collection_time DESC';
+    query += ' ORDER BY s.collection_date ASC, s.collection_time ASC';
     
     db.all(query, (err, schedules) => {
         if (err) {
@@ -276,14 +293,14 @@ app.get('/api/schedules', requireAuth, (req, res) => {
 });
 
 app.post('/api/schedules', requireAuth, (req, res) => {
-    const { bin_id, collection_date, collection_time, notes } = req.body;
+    const { bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes } = req.body;
     
     if (!collection_date || !collection_time) {
         return res.status(400).json({ error: 'Collection date and time are required' });
     }
 
-    db.run('INSERT INTO schedules (user_id, bin_id, collection_date, collection_time, notes) VALUES (?, ?, ?, ?, ?)',
-        [req.session.user.id, bin_id, collection_date, collection_time, notes], function(err) {
+    db.run('INSERT INTO schedules (user_id, bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [req.session.user.id, bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes], function(err) {
         if (err) {
             return res.status(500).json({ error: 'Failed to create schedule' });
         }
@@ -293,14 +310,38 @@ app.post('/api/schedules', requireAuth, (req, res) => {
 
 app.put('/api/schedules/:id', requireAuth, requireRole(['worker', 'admin']), (req, res) => {
     const scheduleId = req.params.id;
-    const { status, collector_name } = req.body;
+    const { status, collector_name, assigned_worker_id } = req.body;
     
-    db.run('UPDATE schedules SET status = ?, collector_name = ? WHERE id = ?',
-        [status, collector_name, scheduleId], function(err) {
+    db.run('UPDATE schedules SET status = ?, collector_name = ?, assigned_worker_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [status, collector_name, assigned_worker_id, scheduleId], function(err) {
         if (err) {
             return res.status(500).json({ error: 'Failed to update schedule' });
         }
         res.json({ message: 'Schedule updated successfully' });
+    });
+});
+
+// Get all workers (for assignment dropdown)
+app.get('/api/workers', requireAuth, requireRole(['admin', 'worker']), (req, res) => {
+    db.all('SELECT id, username FROM users WHERE role IN ("worker", "admin")', (err, workers) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json(workers);
+    });
+});
+
+// Assign worker to schedule (admin only)
+app.put('/api/schedules/:id/assign', requireAuth, requireRole(['admin']), (req, res) => {
+    const scheduleId = req.params.id;
+    const { assigned_worker_id, admin_notes } = req.body;
+    
+    db.run('UPDATE schedules SET assigned_worker_id = ?, admin_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [assigned_worker_id, admin_notes, scheduleId], function(err) {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to assign worker' });
+        }
+        res.json({ message: 'Worker assigned successfully' });
     });
 });
 

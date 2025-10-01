@@ -244,13 +244,49 @@
                                 <label for="scheduleTime">Collection Time:</label>
                                 <input type="time" id="scheduleTime" required>
                             </div>
+                            <div class="form-group" id="workerAssignmentGroup" style="display:none;">
+                                <label for="assignedWorker">Assign Worker:</label>
+                                <select id="assignedWorker">
+                                    <option value="">No specific assignment</option>
+                                    <!-- Workers will be populated dynamically -->
+                                </select>
+                            </div>
                             <div class="form-group">
-                                <label for="scheduleNotes">Notes:</label>
-                                <textarea id="scheduleNotes" rows="3" placeholder="Any special instructions..."></textarea>
+                                <label for="scheduleNotes">Public Notes:</label>
+                                <textarea id="scheduleNotes" rows="3" placeholder="Any special instructions visible to workers..."></textarea>
+                            </div>
+                            <div class="form-group" id="adminNotesGroup" style="display:none;">
+                                <label for="adminNotes">Admin Notes:</label>
+                                <textarea id="adminNotes" rows="2" placeholder="Internal notes for admin reference..."></textarea>
                             </div>
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">Schedule Collection</button>
                                 <button type="button" class="btn btn-secondary" onclick="closeModal('newScheduleModal')">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Assign Worker Modal -->
+                <div id="assignWorkerModal" class="modal worker-assignment-modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <h3>Assign Worker to Collection</h3>
+                        <form id="assignWorkerForm">
+                            <div class="form-group">
+                                <label for="assignWorkerSelect">Select Worker:</label>
+                                <select id="assignWorkerSelect" required>
+                                    <option value="">Choose a worker...</option>
+                                    <!-- Workers will be populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="assignmentNotes">Assignment Notes:</label>
+                                <textarea id="assignmentNotes" rows="3" placeholder="Any special instructions for the assigned worker..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Assign Worker</button>
+                                <button type="button" class="btn btn-secondary" onclick="closeModal('assignWorkerModal')">Cancel</button>
                             </div>
                         </form>
                     </div>

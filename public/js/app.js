@@ -247,8 +247,8 @@ async function loadMapData() {
 
 // Initialize map
 function initializeMap() {
-    // Center on CET Engineering College, Trivandrum
-    const cetLocation = [8.5515, 76.8995];
+    // Center on CET Engineering College, Trivandrum - focused on actual bin locations
+    const cetLocation = [8.545579, 76.905784];
     
     map = L.map('mapContainer').setView(cetLocation, 16);
     
@@ -544,33 +544,49 @@ function displaySchedules() {
         return;
     }
     
-    schedulesContainer.innerHTML = schedules.map(schedule => `
-        <div class="schedule-item">
+    schedulesContainer.innerHTML = schedules.map(schedule => {
+        const isAssignedToCurrentUser = schedule.assigned_worker_id === currentUser.id;
+        const canManage = currentUser.role === 'admin' || isAssignedToCurrentUser;
+        
+        return `
+        <div class="schedule-item ${isAssignedToCurrentUser ? 'assigned-to-me' : ''}">
             <div class="schedule-header">
                 <div>
-                    <div class="schedule-title">Collection on ${new Date(schedule.collection_date).toLocaleDateString()}</div>
+                    <div class="schedule-title">
+                        Collection on ${new Date(schedule.collection_date).toLocaleDateString()}
+                        ${isAssignedToCurrentUser ? '<span class="assigned-badge">Assigned to You</span>' : ''}
+                    </div>
                     <div class="schedule-meta">
                         <span><i class="fas fa-clock"></i> ${schedule.collection_time}</span>
                         <span><i class="fas fa-user"></i> ${schedule.user_name}</span>
-                        <span class="status-badge status-${schedule.status}">${schedule.status}</span>
+                        ${schedule.assigned_worker_name ? `<span><i class="fas fa-user-cog"></i> Assigned: ${schedule.assigned_worker_name}</span>` : ''}
+                        <span class="status-badge status-${schedule.status}">${schedule.status.replace('_', ' ')}</span>
                         ${schedule.bin_type ? `<span class="status-badge">${schedule.bin_type} bin</span>` : ''}
                     </div>
                 </div>
-                ${(currentUser.role === 'worker' || currentUser.role === 'admin') ? `
-                    <div class="schedule-actions">
+                <div class="schedule-actions">
+                    ${canManage ? `
                         <select onchange="updateScheduleStatus(${schedule.id}, this.value)">
                             <option value="">Update Status</option>
+                            <option value="in_progress" ${schedule.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
                             <option value="completed" ${schedule.status === 'completed' ? 'selected' : ''}>Completed</option>
                             <option value="cancelled" ${schedule.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
                         </select>
-                    </div>
-                ` : ''}
+                    ` : ''}
+                    ${currentUser.role === 'admin' && !schedule.assigned_worker_id ? `
+                        <button class="btn btn-primary btn-small" onclick="showAssignWorkerModal(${schedule.id})">
+                            <i class="fas fa-user-plus"></i> Assign Worker
+                        </button>
+                    ` : ''}
+                </div>
             </div>
             ${schedule.bin_location ? `<p><i class="fas fa-map-marker-alt"></i> ${schedule.bin_location}</p>` : ''}
-            ${schedule.notes ? `<p><i class="fas fa-sticky-note"></i> ${schedule.notes}</p>` : ''}
+            ${schedule.notes ? `<p><i class="fas fa-sticky-note"></i> Notes: ${schedule.notes}</p>` : ''}
+            ${schedule.admin_notes && currentUser.role === 'admin' ? `<p><i class="fas fa-lock"></i> Admin Notes: ${schedule.admin_notes}</p>` : ''}
             ${schedule.collector_name ? `<p><i class="fas fa-user-check"></i> Collector: ${schedule.collector_name}</p>` : ''}
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 // Load bins for schedule dropdown
@@ -584,8 +600,31 @@ async function loadBinsForSchedule() {
         bins.forEach(bin => {
             select.innerHTML += `<option value="${bin.id}">${bin.location_name || 'Unnamed'} (${bin.type})</option>`;
         });
+
+        // Load workers for assignment (admin only)
+        if (currentUser.role === 'admin') {
+            document.getElementById('workerAssignmentGroup').style.display = 'block';
+            document.getElementById('adminNotesGroup').style.display = 'block';
+            await loadWorkersForAssignment();
+        }
     } catch (error) {
         console.error('Error loading bins for schedule:', error);
+    }
+}
+
+// Load workers for assignment dropdown
+async function loadWorkersForAssignment() {
+    try {
+        const response = await fetch('/api/workers');
+        const workers = await response.json();
+        const select = document.getElementById('assignedWorker');
+        
+        select.innerHTML = '<option value="">No specific assignment</option>';
+        workers.forEach(worker => {
+            select.innerHTML += `<option value="${worker.id}">${worker.username} (${worker.id === currentUser.id ? 'You' : 'Worker'})</option>`;
+        });
+    } catch (error) {
+        console.error('Error loading workers:', error);
     }
 }
 
@@ -597,6 +636,8 @@ async function handleNewSchedule(e) {
     const collection_date = document.getElementById('scheduleDate').value;
     const collection_time = document.getElementById('scheduleTime').value;
     const notes = document.getElementById('scheduleNotes').value;
+    const assigned_worker_id = document.getElementById('assignedWorker').value || null;
+    const admin_notes = document.getElementById('adminNotes').value;
     
     try {
         const response = await fetch('/api/schedules', {
@@ -604,7 +645,7 @@ async function handleNewSchedule(e) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ bin_id, collection_date, collection_time, notes })
+            body: JSON.stringify({ bin_id, collection_date, collection_time, notes, assigned_worker_id, admin_notes })
         });
         
         const data = await response.json();
@@ -752,4 +793,72 @@ document.addEventListener('DOMContentLoaded', function() {
         dateInput.min = today;
         dateInput.value = today;
     }
+    
+    // Setup worker assignment form handler
+    const assignWorkerForm = document.getElementById('assignWorkerForm');
+    if (assignWorkerForm) {
+        assignWorkerForm.addEventListener('submit', handleWorkerAssignment);
+    }
 });
+
+// Global variable to store schedule ID for assignment
+let scheduleIdForAssignment = null;
+
+// Show assign worker modal
+async function showAssignWorkerModal(scheduleId) {
+    scheduleIdForAssignment = scheduleId;
+    
+    // Load workers
+    try {
+        const response = await fetch('/api/workers');
+        const workers = await response.json();
+        const select = document.getElementById('assignWorkerSelect');
+        
+        select.innerHTML = '<option value="">Choose a worker...</option>';
+        workers.forEach(worker => {
+            select.innerHTML += `<option value="${worker.id}">${worker.username}</option>`;
+        });
+        
+        document.getElementById('assignWorkerModal').style.display = 'block';
+    } catch (error) {
+        console.error('Error loading workers:', error);
+        alert('Failed to load workers');
+    }
+}
+
+// Handle worker assignment
+async function handleWorkerAssignment(e) {
+    e.preventDefault();
+    
+    const assigned_worker_id = document.getElementById('assignWorkerSelect').value;
+    const admin_notes = document.getElementById('assignmentNotes').value;
+    
+    if (!assigned_worker_id) {
+        alert('Please select a worker');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/schedules/${scheduleIdForAssignment}/assign`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ assigned_worker_id, admin_notes })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            closeModal('assignWorkerModal');
+            document.getElementById('assignWorkerForm').reset();
+            loadSchedules();
+            alert('Worker assigned successfully!');
+        } else {
+            alert(data.error || 'Failed to assign worker');
+        }
+    } catch (error) {
+        console.error('Error assigning worker:', error);
+        alert('Failed to assign worker');
+    }
+}
