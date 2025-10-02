@@ -1,7 +1,6 @@
 // Vercel serverless function for waste management API
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session');
 
 // In-memory storage for demo (in production, use external database)
 let users = [
@@ -24,34 +23,42 @@ let nextId = { users: 4, bins: 5, complaints: 1, schedules: 1 };
 const app = express();
 
 // Middleware
+// Simple in-memory session storage for demo
+let sessionStore = {};
+
 app.use(cors({
     origin: true,
     credentials: true
 }));
 app.use(express.json());
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'ejo-waste-management-secret',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
-    }
-}));
 
-// Helper functions
+// Helper functions for simple auth
+const getSession = (req) => {
+    const sessionId = req.headers['x-session-id'] || 'default-session';
+    return sessionStore[sessionId] || {};
+};
+
+const setSession = (req, user) => {
+    const sessionId = req.headers['x-session-id'] || 'default-session';
+    sessionStore[sessionId] = { user };
+    return sessionId;
+};
+
 const requireAuth = (req, res, next) => {
-    if (!req.session.user) {
+    const session = getSession(req);
+    if (!session.user) {
         return res.status(401).json({ error: 'Authentication required' });
     }
+    req.user = session.user;
     next();
 };
 
 const requireRole = (roles) => (req, res, next) => {
-    if (!req.session.user || !roles.includes(req.session.user.role)) {
+    const session = getSession(req);
+    if (!session.user || !roles.includes(session.user.role)) {
         return res.status(403).json({ error: 'Insufficient permissions' });
     }
+    req.user = session.user;
     next();
 };
 
@@ -67,7 +74,7 @@ app.post('/api/auth/login', (req, res) => {
     
     if (!user) {
         // Create new public user
-        const role = username === 'admin' ? 'admin' : 'public';
+        const role = username === 'admin' ? 'admin' : (username.startsWith('worker') ? 'worker' : 'public');
         user = {
             id: nextId.users++,
             username,
@@ -77,18 +84,20 @@ app.post('/api/auth/login', (req, res) => {
         users.push(user);
     }
     
-    req.session.user = user;
-    res.json({ user, message: 'Logged in successfully' });
+    const sessionId = setSession(req, user);
+    res.json({ user, sessionId, message: 'Logged in successfully' });
 });
 
 app.post('/api/auth/logout', (req, res) => {
-    req.session.destroy();
+    const sessionId = req.headers['x-session-id'] || 'default-session';
+    delete sessionStore[sessionId];
     res.json({ message: 'Logged out successfully' });
 });
 
 app.get('/api/auth/me', (req, res) => {
-    if (req.session.user) {
-        res.json({ user: req.session.user });
+    const session = getSession(req);
+    if (session.user) {
+        res.json({ user: session.user });
     } else {
         res.status(401).json({ error: 'Not authenticated' });
     }
@@ -148,7 +157,7 @@ app.post('/api/complaints', requireAuth, (req, res) => {
 
     const newComplaint = {
         id: nextId.complaints++,
-        user_id: req.session.user.id,
+        user_id: req.user.id,
         title,
         description,
         latitude: latitude ? parseFloat(latitude) : null,
@@ -167,11 +176,11 @@ app.post('/api/complaints', requireAuth, (req, res) => {
 app.get('/api/schedules', requireAuth, (req, res) => {
     let userSchedules = schedules;
     
-    if (req.session.user.role === 'public') {
-        userSchedules = schedules.filter(s => s.user_id === req.session.user.id);
-    } else if (req.session.user.role === 'worker') {
+    if (req.user.role === 'public') {
+        userSchedules = schedules.filter(s => s.user_id === req.user.id);
+    } else if (req.user.role === 'worker') {
         userSchedules = schedules.filter(s => 
-            s.user_id === req.session.user.id || s.assigned_worker_id === req.session.user.id
+            s.user_id === req.user.id || s.assigned_worker_id === req.user.id
         );
     }
     
@@ -199,7 +208,7 @@ app.post('/api/schedules', requireAuth, (req, res) => {
 
     const newSchedule = {
         id: nextId.schedules++,
-        user_id: req.session.user.id,
+        user_id: req.user.id,
         bin_id: bin_id ? parseInt(bin_id) : null,
         collection_date,
         collection_time,
@@ -220,5 +229,7 @@ app.get('/api/workers', requireAuth, requireRole(['admin', 'worker']), (req, res
     res.json(workers.map(w => ({ id: w.id, username: w.username })));
 });
 
-// Export for Vercel
-module.exports = app;
+// Export for Vercel serverless function
+module.exports = (req, res) => {
+    return app(req, res);
+};

@@ -16,7 +16,11 @@ document.addEventListener('DOMContentLoaded', function () {
 // Check authentication status
 async function checkAuth() {
     try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/auth/me', {
+            headers: {
+                'X-Session-ID': sessionId
+            }
+        });
         if (response.ok) {
             const data = await response.json();
             currentUser = data.user;
@@ -101,29 +105,49 @@ function setupEventListeners() {
     });
 }
 
+// Global session ID for Vercel serverless
+let sessionId = localStorage.getItem('sessionId') || 'default-session';
+
+// Helper function for API calls with session
+async function apiCall(url, options = {}) {
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId,
+            ...options.headers
+        }
+    };
+    return fetch(url, { ...options, headers: { ...defaultOptions.headers, ...options.headers } });
+}
+
 // Handle login
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('username').value.trim();
-
+    
     if (!username) {
         alert('Please enter a username');
         return;
     }
-
+    
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Session-ID': sessionId
             },
             body: JSON.stringify({ username })
         });
-
+        
         const data = await response.json();
-
+        
         if (response.ok) {
             currentUser = data.user;
+            if (data.sessionId) {
+                sessionId = data.sessionId;
+                localStorage.setItem('sessionId', sessionId);
+            }
             hideLoginModal();
             initializeApp();
         } else {
@@ -133,9 +157,7 @@ async function handleLogin(e) {
         console.error('Login error:', error);
         alert('Login failed. Please try again.');
     }
-}
-
-// Handle logout
+}// Handle logout
 async function handleLogout() {
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -277,7 +299,7 @@ function initializeMap() {
 async function loadBins() {
     try {
         console.log('Loading bins from /api/bins');
-        const response = await fetch('/api/bins');
+        const response = await apiCall('/api/bins');
         console.log('Bins response status:', response.status);
         bins = await response.json();
         console.log('Loaded bins:', bins);

@@ -6,3 +6,4 @@ database.sqlite
 *.tmp
 dist/
 build/
+.vercel
