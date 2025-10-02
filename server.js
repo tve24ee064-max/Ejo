@@ -26,8 +26,9 @@ app.use(session({
     }
 }));
 
-// Initialize SQLite database
-const db = new sqlite3.Database('database.sqlite');
+// Initialize SQLite database with persistent path for Render
+const dbPath = process.env.DATABASE_PATH || './database.sqlite';
+const db = new sqlite3.Database(dbPath);
 
 // Create tables
 db.serialize(() => {
@@ -345,13 +346,27 @@ app.put('/api/schedules/:id/assign', requireAuth, requireRole(['admin']), (req, 
         });
 });
 
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        database: dbPath
+    });
+});
+
 // Serve static files
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Access the application at http://localhost:${PORT}`);
+    console.log(`Database path: ${dbPath}`);
+    if (process.env.RENDER) {
+        console.log(`Access the application at your Render URL`);
+    } else {
+        console.log(`Access the application at http://localhost:${PORT}`);
+    }
 });
