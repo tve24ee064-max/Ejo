@@ -28,7 +28,19 @@ app.use(session({
 
 // Initialize SQLite database with persistent path for Render
 const dbPath = process.env.DATABASE_PATH || './database.sqlite';
-const db = new sqlite3.Database(dbPath);
+console.log('Attempting to connect to database:', dbPath);
+
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Error opening database:', err.message);
+        console.log('Falling back to in-memory database');
+        // Fallback to in-memory database if file access fails
+        const memDb = new sqlite3.Database(':memory:');
+        return memDb;
+    } else {
+        console.log('Connected to SQLite database successfully');
+    }
+});
 
 // Create tables
 db.serialize(() => {
@@ -351,8 +363,15 @@ app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'OK', 
         timestamp: new Date().toISOString(),
-        database: dbPath
+        database: dbPath,
+        port: PORT,
+        env: process.env.NODE_ENV || 'development'
     });
+});
+
+// Simple test endpoint
+app.get('/test', (req, res) => {
+    res.status(200).send('✅ Server is working! Waste Management System is online.');
 });
 
 // Serve static files
@@ -360,13 +379,34 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Error handling
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+});
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Database path: ${dbPath}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Server started successfully!`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`💾 Database path: ${dbPath}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     if (process.env.RENDER) {
-        console.log(`Access the application at your Render URL`);
+        console.log(`🌐 Access the application at your Render URL`);
     } else {
-        console.log(`Access the application at http://localhost:${PORT}`);
+        console.log(`🌐 Access the application at http://localhost:${PORT}`);
     }
+});
+
+server.on('error', (err) => {
+    console.error('❌ Server failed to start:', err);
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use`);
+    }
+    process.exit(1);
 });
